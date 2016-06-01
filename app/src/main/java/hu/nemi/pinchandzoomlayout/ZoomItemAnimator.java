@@ -1,8 +1,10 @@
 package hu.nemi.pinchandzoomlayout;
 
 import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
+import android.animation.PropertyValuesHolder;
 import android.graphics.Rect;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -161,13 +163,10 @@ public class ZoomItemAnimator extends RecyclerView.ItemAnimator implements Scale
         long duration = (long)(500 * (1.0f - scale.getScale()));
         animator.setDuration(duration);
         animator.setInterpolator(new DecelerateInterpolator());
-        animator.addListener(new SimpleAnimatorListener() {
+        animator.addListener(new AnimatorListenerAdapter() {
             @Override
             public void onAnimationEnd(Animator animation) {
                 isRunning = false;
-                for(AnimatedItem ai : items) {
-                    dispatchAnimationFinished(ai.getViewHolder());
-                }
                 ZoomItemAnimator.this.animator = null;
             }
         });
@@ -181,20 +180,25 @@ public class ZoomItemAnimator extends RecyclerView.ItemAnimator implements Scale
         animator.start();
     }
 
-    private void addItemAnimators(AnimatedItem ai, List<Animator> animators) {
-        View view = ai.getViewHolder().itemView;
+    private void addItemAnimators(final AnimatedItem ai, List<Animator> animators) {
         Rect post = ai.getPostRect();
 
-        animators.add(getPropertyAnimator(view, "top", post.top));
-        animators.add(getPropertyAnimator(view, "left", post.left));
-        animators.add(getPropertyAnimator(view, "bottom", post.bottom));
-        animators.add(getPropertyAnimator(view, "right", post.right));
-    }
+        final View view = ai.getViewHolder().itemView;
 
-    private Animator getPropertyAnimator(View view, String property, int to) {
-        return ObjectAnimator.ofInt(view, property, to);
-    }
 
+        Animator viewAnimator = ObjectAnimator.ofPropertyValuesHolder(view,
+                PropertyValuesHolder.ofInt("top", post.top),
+                PropertyValuesHolder.ofInt("left", post.left),
+                PropertyValuesHolder.ofInt("bottom", post.bottom),
+                PropertyValuesHolder.ofInt("right", post.right));
+        viewAnimator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                dispatchAnimationFinished(ai.getViewHolder());
+            }
+        });
+        animators.add(viewAnimator);
+    }
 
     private void onScale(float incrementalScaleFactor) {
         scaleHandler.onScale(incrementalScaleFactor);
